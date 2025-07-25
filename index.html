@@ -30,10 +30,6 @@
         .dark .text-gray-600 { color: #cbd5e0 !important; }
         .dark .border-gray-200 { border-color: #4a5568 !important; }
 
-        .angkatan-8 { background: linear-gradient(135deg, #10B981, #059669); }
-        .angkatan-9 { background: linear-gradient(135deg, #3B82F6, #1E40AF); }
-        .angkatan-10 { background: linear-gradient(135deg, #8B5CF6, #7C3AED); }
-        .angkatan-11 { background: linear-gradient(135deg, #F59E0B, #D97706); }
         .angkatan-12 { background: linear-gradient(135deg, #10B981, #059669); }
         .angkatan-13 { background: linear-gradient(135deg, #3B82F6, #1E40AF); }
         .angkatan-14 { background: linear-gradient(135deg, #8B5CF6, #7C3AED); }
@@ -209,13 +205,6 @@
     </style>
 
     <script>
-        // KONFIGURASI SUPABASE - GANTI DENGAN KONFIGURASI ANDA
-        const SUPABASE_CONFIG = {
-            url: 'https://rxjfjrcpmaexsfacfejj.supabase.co',
-            key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ4amZqcmNwbWFleHNmYWNmZWpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMyNzQ5MDYsImV4cCI6MjA2ODg1MDkwNn0.xHNHBZtepd9PPMZBRbiFFq-7eXv70cu-iFyeK-vQ0ys'
-        };
-        // AKHIR KONFIGURASI SUPABASE
-
         tailwind.config = {
             darkMode: 'class',
             theme: {
@@ -1604,13 +1593,13 @@
                                         <!-- Daily Progress -->
                                         <div v-for="date in getDateRange(ibadahFilter.month)" :key="date" 
                                              class="w-16 p-2 text-center border-r border-gray-200 dark:border-gray-600">
-                                            <div class="w-10 h-10 mx-auto rounded-full flex items-center justify-center text-xs font-bold"
+                                            <div class="w-10 h-10 mx-auto rounded-full flex items-center justify-center text-xs font-bold cursor-pointer"
                                                  :class="getIbadahCompletion(santri.id, date) === 100 ? 'bg-green-500 text-white' : 
                                                         getIbadahCompletion(santri.id, date) >= 80 ? 'bg-yellow-500 text-white' :
                                                         getIbadahCompletion(santri.id, date) >= 50 ? 'bg-orange-500 text-white' :
                                                         getIbadahCompletion(santri.id, date) > 0 ? 'bg-red-500 text-white' : 'bg-gray-300 text-gray-600'"
                                                  @click="openIbadahDetail(santri.id, date)"
-                                                 style="cursor: pointer;">
+                                                 title="Klik untuk detail">
                                                 {{ getIbadahCompletion(santri.id, date) }}
                                             </div>
                                         </div>
@@ -1662,10 +1651,18 @@
 
         const app = createApp({
             setup() {
-                // Supabase configuration - FIXED: Single source
+                // ==================== SUPABASE CONFIGURATION ====================
+                // HARDCODED CONFIGURATION - HAPUS MODAL KONFIGURASI
+                const SUPABASE_CONFIG = {
+                    url: 'https://rxjfjrcpmaexsfacfejj.supabase.co',
+                    key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ4amZqcmNwbWFleHNmYWNmZWpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMyNzQ5MDYsImV4cCI6MjA2ODg1MDkwNn0.xHNHBZtepd9PPMZBRbiFFq-7eXv70cu-iFyeK-vQ0ys'
+                };
+
+                // Supabase state
                 const supabaseClient = ref(null);
                 const connectionStatus = ref('disconnected');
                 const isConnecting = ref(false);
+                const isSyncing = ref(false);
 
                 // Core state
                 const loading = ref(true);
@@ -1732,11 +1729,19 @@
                     musyrif: ''
                 });
 
-                // Data - FIXED: Start with defaults, load from DB
-                const musyrifList = ref([]);
-                const santriList = ref([]);
+                // Data - DENGAN PROPER DELETE STATUS
+                const musyrifList = ref([
+                    { id: 'mus-1', name: 'Musyrif1', username: 'musyrif1', password: 'musyrif1', isActive: true },
+                    { id: 'mus-2', name: 'Musyrif2', username: 'musyrif2', password: 'musyrif2', isActive: true },
+                ]);
+
+                const santriList = ref([
+                    { id: 'santri-1', name: 'Santri 1', angkatan: 12, musyrifId: 'mus-1', isActive: true },
+                    { id: 'santri-2', name: 'Santri 2', angkatan: 11, musyrifId: 'mus-2', isActive: true },
+                ]);
+
                 const adminUsers = ref([
-                    { id: 'admin-1', username: 'adminputri', password: 'admin123', name: 'Administrator', role: 'admin' }
+                    { id: 'admin-1', username: 'admin', password: 'admin123', name: 'Administrator', role: 'admin' }
                 ]);
 
                 const notifications = ref([]);
@@ -1812,7 +1817,7 @@
                     { key: 'sedekah', name: 'Sedekah', icon: 'fas fa-hand-holding-heart', color: 'text-pink-500' }
                 ]);
 
-                // Helper functions
+                // ==================== HELPER FUNCTIONS ====================
                 function getJakartaDate() {
                     const now = new Date();
                     const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
@@ -1936,18 +1941,28 @@
                     selectedDate.value = getCurrentDate();
                 };
 
-                // FIXED: Unified Supabase functions
-                const initializeSupabase = () => {
+                // ==================== IMPROVED SUPABASE FUNCTIONS ====================
+                const initializeSupabase = async () => {
                     try {
-                        if (SUPABASE_CONFIG.url && SUPABASE_CONFIG.key) {
-                            supabaseClient.value = createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.key);
-                            console.log('Supabase client initialized');
+                        console.log('🔗 Initializing Supabase connection...');
+                        connectionStatus.value = 'connecting';
+                        
+                        supabaseClient.value = createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.key);
+                        
+                        // Test connection immediately
+                        const connected = await testConnection();
+                        if (connected) {
+                            await loadDataFromSupabase();
+                            setupRealtimeSubscriptions();
+                            console.log('✅ Supabase initialized successfully');
                             return true;
+                        } else {
+                            console.error('❌ Failed to connect to Supabase');
+                            return false;
                         }
-                        console.log('Supabase config not found');
-                        return false;
                     } catch (error) {
-                        console.error('Error initializing Supabase:', error);
+                        console.error('❌ Error initializing Supabase:', error);
+                        connectionStatus.value = 'disconnected';
                         return false;
                     }
                 };
@@ -1956,23 +1971,19 @@
                     if (!supabaseClient.value) return false;
                     
                     try {
-                        connectionStatus.value = 'connecting';
-                        console.log('Testing connection...');
-                        
                         // Test dengan query sederhana
-                        const { data, error } = await supabaseClient.value
-                            .from('santri')
-                            .select('id')
+                        const { error } = await supabaseClient.value
+                            .from('musyrif')
+                            .select('count')
                             .limit(1);
                         
-                        if (error && error.code !== 'PGRST116') { // PGRST116 = table not found (OK)
+                        if (error && !error.message.includes('does not exist')) {
                             console.error('Connection test failed:', error);
                             connectionStatus.value = 'disconnected';
                             return false;
                         }
                         
                         connectionStatus.value = 'connected';
-                        console.log('Successfully connected to Supabase');
                         return true;
                         
                     } catch (error) {
@@ -1982,272 +1993,103 @@
                     }
                 };
 
-                // FIXED: Improved sync functions with better error handling
-                const syncToSupabase = async (forceSync = false) => {
-                    if (!supabaseClient.value || connectionStatus.value !== 'connected') {
-                        console.log('Skipping sync - not connected');
-                        return false;
-                    }
+                const setupRealtimeSubscriptions = () => {
+                    if (!supabaseClient.value || connectionStatus.value !== 'connected') return;
 
-                    try {
-                        console.log('Starting sync to Supabase...');
-                        autoSaving.value = true;
+                    console.log('🔄 Setting up realtime subscriptions...');
 
-                        // Sync musyrif data
-                        if (musyrifList.value.length > 0) {
-                            for (const musyrif of musyrifList.value) {
-                                const { error } = await supabaseClient.value
-                                    .from('musyrif')
-                                    .upsert({
-                                        id: musyrif.id,
-                                        name: musyrif.name,
-                                        username: musyrif.username,
-                                        password: musyrif.password,
-                                        is_active: true,
-                                        updated_at: new Date().toISOString()
-                                    }, {
-                                        onConflict: 'id'
-                                    });
-                                
-                                if (error) {
-                                    console.error('Error syncing musyrif:', error);
-                                    throw error;
-                                }
-                            }
-                            console.log(`Synced ${musyrifList.value.length} musyrif records`);
-                        }
-
-                        // Sync santri data
-                        if (santriList.value.length > 0) {
-                            for (const santri of santriList.value) {
-                                const { error } = await supabaseClient.value
-                                    .from('santri')
-                                    .upsert({
-                                        id: santri.id,
-                                        name: santri.name,
-                                        angkatan: santri.angkatan,
-                                        musyrif_id: santri.musyrifId,
-                                        is_active: true,
-                                        updated_at: new Date().toISOString()
-                                    }, {
-                                        onConflict: 'id'
-                                    });
-                                
-                                if (error) {
-                                    console.error('Error syncing santri:', error);
-                                    throw error;
-                                }
-                            }
-                            console.log(`Synced ${santriList.value.length} santri records`);
-                        }
-
-                        // Sync progress data (only recent data to avoid timeouts)
-                        await syncProgressData();
-
-                        console.log('Successfully synced to Supabase');
-                        return true;
-                        
-                    } catch (error) {
-                        console.error('Error syncing to Supabase:', error);
-                        connectionStatus.value = 'disconnected';
-                        showNotification('Gagal menyinkronkan data: ' + error.message, 'error');
-                        return false;
-                    } finally {
-                        autoSaving.value = false;
-                    }
+                    // Subscribe to all table changes
+                    supabaseClient.value
+                        .channel('all_changes')
+                        .on('postgres_changes', { event: '*', schema: 'public', table: 'musyrif' }, () => {
+                            console.log('🔄 Musyrif data changed, reloading...');
+                            loadDataFromSupabase();
+                        })
+                        .on('postgres_changes', { event: '*', schema: 'public', table: 'santri' }, () => {
+                            console.log('🔄 Santri data changed, reloading...');
+                            loadDataFromSupabase();
+                        })
+                        .on('postgres_changes', { event: '*', schema: 'public', table: 'tahfizh_progress' }, () => {
+                            console.log('🔄 Tahfizh progress changed, reloading...');
+                            loadDataFromSupabase();
+                        })
+                        .on('postgres_changes', { event: '*', schema: 'public', table: 'ibadah_progress' }, () => {
+                            console.log('🔄 Ibadah progress changed, reloading...');
+                            loadDataFromSupabase();
+                        })
+                        .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance_progress' }, () => {
+                            console.log('🔄 Attendance progress changed, reloading...');
+                            loadDataFromSupabase();
+                        })
+                        .subscribe();
                 };
 
-                const syncProgressData = async () => {
-                    const currentMonth = getCurrentMonth();
-                    const recentDates = getDateRange(currentMonth);
-
-                    // Sync tahfizh progress (current month only)
-                    for (const [santriId, progressData] of Object.entries(tahfizhProgress.value)) {
-                        for (const [date, dayProgress] of Object.entries(progressData)) {
-                            if (recentDates.includes(date)) {
-                                const { error } = await supabaseClient.value
-                                    .from('tahfizh_progress')
-                                    .upsert({
-                                        santri_id: santriId,
-                                        date: date,
-                                        start_page: dayProgress.startPage,
-                                        end_page: dayProgress.endPage,
-                                        murojaah_juz: dayProgress.murojaahJuz || 0,
-                                        exam: dayProgress.exam,
-                                        timestamp: dayProgress.timestamp,
-                                        musyrif_id: currentUser.value?.id,
-                                        updated_at: new Date().toISOString()
-                                    }, {
-                                        onConflict: 'santri_id,date'
-                                    });
-
-                                if (error) throw error;
-                            }
-                        }
-                    }
-
-                    // Sync ibadah progress (current month only)
-                    for (const [santriId, progressData] of Object.entries(ibadahProgress.value)) {
-                        for (const [date, dayProgress] of Object.entries(progressData)) {
-                            if (recentDates.includes(date)) {
-                                const ibadahData = {
-                                    santri_id: santriId,
-                                    date: date,
-                                    ql: dayProgress.ql || false,
-                                    sholat: dayProgress.sholat || false,
-                                    matsurat: dayProgress.matsurat || false,
-                                    piket: dayProgress.piket || false,
-                                    dirosah: dayProgress.dirosah || false,
-                                    olahraga: dayProgress.olahraga || false,
-                                    lima_s: dayProgress.lima_s || false,
-                                    baca: dayProgress.baca || false,
-                                    murojaahsholat: dayProgress.murojaahsholat || false,
-                                    sedekah: dayProgress.sedekah || false,
-                                    progress_data: JSON.stringify(dayProgress),
-                                    musyrif_id: currentUser.value?.id,
-                                    updated_at: new Date().toISOString()
-                                };
-
-                                const { error } = await supabaseClient.value
-                                    .from('ibadah_progress')
-                                    .upsert(ibadahData, {
-                                        onConflict: 'santri_id,date'
-                                    });
-
-                                if (error) throw error;
-                            }
-                        }
-                    }
-
-                    // Sync attendance progress (current month only)
-                    for (const [santriId, progressData] of Object.entries(attendanceProgress.value)) {
-                        for (const [date, dayProgress] of Object.entries(progressData)) {
-                            if (recentDates.includes(date)) {
-                                const attendanceData = {
-                                    santri_id: santriId,
-                                    date: date,
-                                    halaqah_1: dayProgress.halaqah_1 || 'tanpa_keterangan',
-                                    halaqah_2: dayProgress.halaqah_2 || 'tanpa_keterangan',
-                                    halaqah_3: dayProgress.halaqah_3 || 'tanpa_keterangan',
-                                    attendance_data: JSON.stringify(dayProgress),
-                                    timestamp: dayProgress.timestamp,
-                                    musyrif_id: currentUser.value?.id,
-                                    updated_at: new Date().toISOString()
-                                };
-
-                                const { error } = await supabaseClient.value
-                                    .from('attendance_progress')
-                                    .upsert(attendanceData, {
-                                        onConflict: 'santri_id,date'
-                                    });
-
-                                if (error) throw error;
-                            }
-                        }
-                    }
-                };
-
-                const syncFromSupabase = async (forceReload = false) => {
-                    if (!supabaseClient.value || connectionStatus.value !== 'connected') {
-                        console.log('Skipping load - not connected');
-                        return false;
-                    }
+                // IMPROVED: Dedicated function to load data from Supabase
+                const loadDataFromSupabase = async () => {
+                    if (!supabaseClient.value || connectionStatus.value !== 'connected') return;
 
                     try {
-                        console.log('Loading data from Supabase...');
+                        console.log('📥 Loading data from Supabase...');
 
-                        // Fetch musyrif data
+                        // Load musyrif data
                         const { data: musyrifData, error: musyrifError } = await supabaseClient.value
                             .from('musyrif')
                             .select('*')
-                            .eq('is_active', true)
-                            .order('created_at', { ascending: true });
+                            .eq('is_active', true);
                         
-                        if (musyrifError && musyrifError.code !== 'PGRST116') {
-                            throw musyrifError;
-                        }
-                        
-                        if (musyrifData && musyrifData.length > 0) {
+                        if (!musyrifError && musyrifData && musyrifData.length > 0) {
                             musyrifList.value = musyrifData.map(item => ({
                                 id: item.id,
                                 name: item.name,
                                 username: item.username,
-                                password: item.password
+                                password: item.password,
+                                isActive: item.is_active !== false
                             }));
-                            console.log(`Loaded ${musyrifData.length} musyrif records`);
-                        } else {
-                            // Use defaults if no data
-                            musyrifList.value = [
-                                { id: 'mus-1', name: 'Ustadzah Min Ai', username: 'aminah', password: 'aminah123' },
-                                { id: 'mus-2', name: 'Ustadzah Arini', username: 'arini', password: 'arini123' }
-                            ];
-                            console.log('Using default musyrif data');
+                            console.log(`📥 Loaded ${musyrifData.length} musyrif records`);
                         }
 
-                        // Fetch santri data
+                        // Load santri data
                         const { data: santriData, error: santriError } = await supabaseClient.value
                             .from('santri')
                             .select('*')
-                            .eq('is_active', true)
-                            .order('created_at', { ascending: true });
+                            .eq('is_active', true);
                         
-                        if (santriError && santriError.code !== 'PGRST116') {
-                            throw santriError;
-                        }
-                        
-                        if (santriData && santriData.length > 0) {
+                        if (!santriError && santriData && santriData.length > 0) {
                             santriList.value = santriData.map(item => ({
                                 id: item.id,
                                 name: item.name,
                                 angkatan: item.angkatan,
-                                musyrifId: item.musyrif_id
+                                musyrifId: item.musyrif_id,
+                                isActive: item.is_active !== false
                             }));
-                            console.log(`Loaded ${santriData.length} santri records`);
-                        } else {
-                            // Use defaults if no data
-                            santriList.value = [
-                                { id: 'santri-1', name: 'Zainab', angkatan: 9, musyrifId: 'mus-1' },
-                                { id: 'santri-2', name: 'Salamah', angkatan: 10, musyrifId: 'mus-2' }
-                            ];
-                            console.log('Using default santri data');
+                            console.log(`📥 Loaded ${santriData.length} santri records`);
                         }
 
-                        // Load progress data
-                        await loadProgressData();
+                        // Load tahfizh progress
+                        await loadTahfizhProgress();
+                        
+                        // Load ibadah progress
+                        await loadIbadahProgress();
+                        
+                        // Load attendance progress
+                        await loadAttendanceProgress();
 
-                        console.log('Successfully loaded data from Supabase');
-                        showNotification('Data berhasil dimuat dari database', 'success');
-                        return true;
-
+                        console.log('✅ All data loaded from Supabase');
+                        
                     } catch (error) {
-                        console.error('Error loading from Supabase:', error);
-                        if (error.code !== 'PGRST116') {
-                            connectionStatus.value = 'disconnected';
-                            showNotification('Gagal memuat data: ' + error.message, 'error');
-                        }
-                        return false;
+                        console.error('❌ Error loading data from Supabase:', error);
                     }
                 };
 
-                const loadProgressData = async () => {
+                const loadTahfizhProgress = async () => {
                     try {
-                        // Load last 3 months of data only
-                        const currentDate = new Date();
-                        const threeMonthsAgo = new Date(currentDate.getFullYear(), currentDate.getMonth() - 2, 1);
-                        const startDate = threeMonthsAgo.toISOString().split('T')[0];
-
-                        // Fetch tahfizh progress
-                        const { data: tahfizhData, error: tahfizhError } = await supabaseClient.value
+                        const { data: tahfizhData, error } = await supabaseClient.value
                             .from('tahfizh_progress')
                             .select('*')
-                            .gte('date', startDate)
-                            .order('date', { ascending: false });
+                            .order('date', { ascending: false })
+                            .limit(1000); // Limit untuk performance
                         
-                        if (tahfizhError && tahfizhError.code !== 'PGRST116') {
-                            throw tahfizhError;
-                        }
-                        
-                        if (tahfizhData && tahfizhData.length > 0) {
+                        if (!error && tahfizhData && tahfizhData.length > 0) {
                             const newTahfizhProgress = {};
                             tahfizhData.forEach(item => {
                                 if (!newTahfizhProgress[item.santri_id]) {
@@ -2263,28 +2105,31 @@
                                 };
                             });
                             tahfizhProgress.value = newTahfizhProgress;
-                            console.log(`Loaded ${tahfizhData.length} tahfizh progress records`);
+                            console.log(`📥 Loaded ${tahfizhData.length} tahfizh progress records`);
                         }
+                    } catch (error) {
+                        console.error('Error loading tahfizh progress:', error);
+                    }
+                };
 
-                        // Fetch ibadah progress
-                        const { data: ibadahData, error: ibadahError } = await supabaseClient.value
+                const loadIbadahProgress = async () => {
+                    try {
+                        const { data: ibadahData, error } = await supabaseClient.value
                             .from('ibadah_progress')
                             .select('*')
-                            .gte('date', startDate)
-                            .order('date', { ascending: false });
+                            .order('date', { ascending: false })
+                            .limit(1000);
                         
-                        if (ibadahError && ibadahError.code !== 'PGRST116') {
-                            throw ibadahError;
-                        }
-                        
-                        if (ibadahData && ibadahData.length > 0) {
+                        if (!error && ibadahData && ibadahData.length > 0) {
                             const newIbadahProgress = {};
                             ibadahData.forEach(item => {
                                 if (!newIbadahProgress[item.santri_id]) {
                                     newIbadahProgress[item.santri_id] = {};
                                 }
                                 
+                                // Use individual columns first, fallback to JSONB
                                 let dayProgress = {};
+                                
                                 if (item.ql !== null || item.sholat !== null) {
                                     dayProgress = {
                                         ql: item.ql || false,
@@ -2311,28 +2156,31 @@
                                 newIbadahProgress[item.santri_id][item.date] = dayProgress;
                             });
                             ibadahProgress.value = newIbadahProgress;
-                            console.log(`Loaded ${ibadahData.length} ibadah progress records`);
+                            console.log(`📥 Loaded ${ibadahData.length} ibadah progress records`);
                         }
+                    } catch (error) {
+                        console.error('Error loading ibadah progress:', error);
+                    }
+                };
 
-                        // Fetch attendance progress
-                        const { data: attendanceData, error: attendanceError } = await supabaseClient.value
+                const loadAttendanceProgress = async () => {
+                    try {
+                        const { data: attendanceData, error } = await supabaseClient.value
                             .from('attendance_progress')
                             .select('*')
-                            .gte('date', startDate)
-                            .order('date', { ascending: false });
+                            .order('date', { ascending: false })
+                            .limit(1000);
                         
-                        if (attendanceError && attendanceError.code !== 'PGRST116') {
-                            throw attendanceError;
-                        }
-                        
-                        if (attendanceData && attendanceData.length > 0) {
+                        if (!error && attendanceData && attendanceData.length > 0) {
                             const newAttendanceProgress = {};
                             attendanceData.forEach(item => {
                                 if (!newAttendanceProgress[item.santri_id]) {
                                     newAttendanceProgress[item.santri_id] = {};
                                 }
                                 
+                                // Use individual columns first, fallback to JSONB
                                 let dayProgress = {};
+                                
                                 if (item.halaqah_1 || item.halaqah_2 || item.halaqah_3) {
                                     dayProgress = {
                                         halaqah_1: item.halaqah_1 || 'tanpa_keterangan',
@@ -2352,43 +2200,147 @@
                                 newAttendanceProgress[item.santri_id][item.date] = dayProgress;
                             });
                             attendanceProgress.value = newAttendanceProgress;
-                            console.log(`Loaded ${attendanceData.length} attendance progress records`);
+                            console.log(`📥 Loaded ${attendanceData.length} attendance progress records`);
                         }
-
                     } catch (error) {
-                        console.error('Error loading progress data:', error);
-                        throw error;
+                        console.error('Error loading attendance progress:', error);
                     }
                 };
 
-                // FIXED: Simplified auto-save with debouncing
-                let saveTimeout = null;
-                const debouncedSave = () => {
-                    if (saveTimeout) clearTimeout(saveTimeout);
-                    saveTimeout = setTimeout(async () => {
-                        await saveToStorage();
-                        if (connectionStatus.value === 'connected') {
-                            await syncToSupabase();
+                // IMPROVED: Save functions with proper error handling and conflict resolution
+                const saveMusyrifToSupabase = async (musyrifData) => {
+                    if (!supabaseClient.value || connectionStatus.value !== 'connected') return false;
+
+                    try {
+                        const dataToSave = {
+                            id: musyrifData.id,
+                            name: musyrifData.name,
+                            username: musyrifData.username,
+                            password: musyrifData.password,
+                            is_active: musyrifData.isActive !== false,
+                            updated_at: new Date().toISOString()
+                        };
+
+                        const { error } = await supabaseClient.value
+                            .from('musyrif')
+                            .upsert(dataToSave, {
+                                onConflict: 'id'
+                            });
+
+                        if (error) {
+                            console.error('Error saving musyrif to Supabase:', error);
+                            return false;
                         }
-                    }, 2000); // 2 second debounce
+
+                        console.log('✅ Musyrif saved to Supabase:', musyrifData.name);
+                        return true;
+                    } catch (error) {
+                        console.error('Error saving musyrif to Supabase:', error);
+                        return false;
+                    }
                 };
 
-                // Computed properties
-                const totalSantri = computed(() => santriList.value.length);
-                const totalMusyrif = computed(() => musyrifList.value.length);
+                const saveSantriToSupabase = async (santriData) => {
+                    if (!supabaseClient.value || connectionStatus.value !== 'connected') return false;
+
+                    try {
+                        const dataToSave = {
+                            id: santriData.id,
+                            name: santriData.name,
+                            angkatan: santriData.angkatan,
+                            musyrif_id: santriData.musyrifId,
+                            is_active: santriData.isActive !== false,
+                            updated_at: new Date().toISOString()
+                        };
+
+                        const { error } = await supabaseClient.value
+                            .from('santri')
+                            .upsert(dataToSave, {
+                                onConflict: 'id'
+                            });
+
+                        if (error) {
+                            console.error('Error saving santri to Supabase:', error);
+                            return false;
+                        }
+
+                        console.log('✅ Santri saved to Supabase:', santriData.name);
+                        return true;
+                    } catch (error) {
+                        console.error('Error saving santri to Supabase:', error);
+                        return false;
+                    }
+                };
+
+                // IMPROVED: Soft delete functions
+                const softDeleteMusyrif = async (musyrifId) => {
+                    if (!supabaseClient.value || connectionStatus.value !== 'connected') return false;
+
+                    try {
+                        const { error } = await supabaseClient.value
+                            .from('musyrif')
+                            .update({ 
+                                is_active: false,
+                                updated_at: new Date().toISOString()
+                            })
+                            .eq('id', musyrifId);
+
+                        if (error) {
+                            console.error('Error soft deleting musyrif:', error);
+                            return false;
+                        }
+
+                        console.log('✅ Musyrif soft deleted from Supabase:', musyrifId);
+                        return true;
+                    } catch (error) {
+                        console.error('Error soft deleting musyrif:', error);
+                        return false;
+                    }
+                };
+
+                const softDeleteSantri = async (santriId) => {
+                    if (!supabaseClient.value || connectionStatus.value !== 'connected') return false;
+
+                    try {
+                        const { error } = await supabaseClient.value
+                            .from('santri')
+                            .update({ 
+                                is_active: false,
+                                updated_at: new Date().toISOString()
+                            })
+                            .eq('id', santriId);
+
+                        if (error) {
+                            console.error('Error soft deleting santri:', error);
+                            return false;
+                        }
+
+                        console.log('✅ Santri soft deleted from Supabase:', santriId);
+                        return true;
+                    } catch (error) {
+                        console.error('Error soft deleting santri:', error);
+                        return false;
+                    }
+                };
+
+                // ==================== COMPUTED PROPERTIES ====================
+                const totalSantri = computed(() => santriList.value.filter(s => s.isActive !== false).length);
+                const totalMusyrif = computed(() => musyrifList.value.filter(m => m.isActive !== false).length);
 
                 const averageProgress = computed(() => {
-                    if (santriList.value.length === 0) return 0;
-                    const total = santriList.value.reduce((sum, santri) => sum + getSantriCurrentJuz(santri.id), 0);
-                    return Math.round(total / santriList.value.length);
+                    const activeSantri = santriList.value.filter(s => s.isActive !== false);
+                    if (activeSantri.length === 0) return 0;
+                    const total = activeSantri.reduce((sum, santri) => sum + getSantriCurrentJuz(santri.id), 0);
+                    return Math.round(total / activeSantri.length);
                 });
 
                 const todayAttendancePercentage = computed(() => {
                     const today = getCurrentDate();
+                    const activeSantri = santriList.value.filter(s => s.isActive !== false);
                     let totalAttendance = 0;
                     let count = 0;
                     
-                    santriList.value.forEach(santri => {
+                    activeSantri.forEach(santri => {
                         const attendance = getDailyAttendancePercentage(santri.id, today);
                         totalAttendance += attendance;
                         count++;
@@ -2401,12 +2353,14 @@
 
                 const mySantri = computed(() => {
                     if (!currentUser.value || !isMusyrif.value) return [];
-                    return santriList.value.filter(santri => santri.musyrifId === currentUser.value.id);
+                    return santriList.value.filter(santri => 
+                        santri.musyrifId === currentUser.value.id && santri.isActive !== false
+                    );
                 });
 
                 const uniqueAngkatanList = computed(() => {
                     const angkatanSet = new Set();
-                    santriList.value.forEach(santri => {
+                    santriList.value.filter(s => s.isActive !== false).forEach(santri => {
                         if (santri.angkatan != null && santri.angkatan !== '') {
                             angkatanSet.add(santri.angkatan);
                         }
@@ -2415,7 +2369,7 @@
                 });
 
                 const filteredSantri = computed(() => {
-                    let filtered = santriList.value;
+                    let filtered = santriList.value.filter(s => s.isActive !== false);
                     
                     if (santriFilter.angkatan) {
                         filtered = filtered.filter(santri => santri.angkatan === parseInt(santriFilter.angkatan));
@@ -2435,7 +2389,7 @@
                 });
 
                 const filteredSantriForRecap = computed(() => {
-                    let filtered = santriList.value;
+                    let filtered = santriList.value.filter(s => s.isActive !== false);
                     
                     if (tahfizhFilter.angkatan) {
                         filtered = filtered.filter(santri => santri.angkatan === parseInt(tahfizhFilter.angkatan));
@@ -2462,7 +2416,7 @@
                 });
 
                 const filteredSantriForIbadah = computed(() => {
-                    let filtered = santriList.value;
+                    let filtered = santriList.value.filter(s => s.isActive !== false);
                     
                     if (ibadahFilter.angkatan) {
                         filtered = filtered.filter(santri => santri.angkatan === parseInt(ibadahFilter.angkatan));
@@ -2476,7 +2430,7 @@
                 });
 
                 const filteredSantriForAttendance = computed(() => {
-                    let filtered = isMusyrif.value ? mySantri.value : santriList.value;
+                    let filtered = isMusyrif.value ? mySantri.value : santriList.value.filter(s => s.isActive !== false);
                     
                     if (attendanceFilter.angkatan) {
                         filtered = filtered.filter(santri => santri.angkatan === parseInt(attendanceFilter.angkatan));
@@ -2497,7 +2451,9 @@
                     if (!musyrifForm.name.trim() || !musyrifForm.username.trim()) return false;
                     if (!editingMusyrif.value && !musyrifForm.password.trim()) return false;
                     if (!editingMusyrif.value) {
-                        const existing = musyrifList.value.find(m => m.username === musyrifForm.username.trim());
+                        const existing = musyrifList.value.find(m => 
+                            m.username === musyrifForm.username.trim() && m.isActive !== false
+                        );
                         if (existing) return false;
                     }
                     return true;
@@ -2528,7 +2484,7 @@
                     }
                 });
 
-                // Methods
+                // ==================== GENERAL METHODS ====================
                 const toggleDarkMode = () => {
                     darkMode.value = !darkMode.value;
                     
@@ -2581,7 +2537,7 @@
                     return icons[type] || icons.info;
                 };
 
-                // Authentication
+                // ==================== AUTHENTICATION ====================
                 const login = async () => {
                     loginError.value = '';
                     
@@ -2607,7 +2563,8 @@
                     // Check musyrif
                     const musyrif = musyrifList.value.find(user => 
                         user.username === credentials.username && 
-                        user.password === credentials.password
+                        user.password === credentials.password &&
+                        user.isActive !== false
                     );
                     
                     if (musyrif) {
@@ -2647,7 +2604,7 @@
                     isPublicAccess.value = false;
                 };
 
-                // FIXED: Santri Management with immediate sync
+                // ==================== SANTRI MANAGEMENT ====================
                 const openSantriModal = (santri = null) => {
                     editingSantri.value = santri;
                     if (santri) {
@@ -2683,39 +2640,43 @@
                     isSubmitting.value = true;
 
                     try {
-                        await new Promise(resolve => setTimeout(resolve, 500));
-
+                        let santriData;
+                        
                         if (editingSantri.value) {
                             // Update existing santri
                             const index = santriList.value.findIndex(s => s.id === editingSantri.value.id);
                             if (index !== -1) {
-                                santriList.value[index] = {
+                                santriData = {
                                     ...santriList.value[index],
                                     name: santriForm.name.trim(),
-                                    angkatan: parseInt(santriForm.angkatan),
+                                    angkatan: santriForm.angkatan,
                                     musyrifId: santriForm.musyrifId
                                 };
+                                santriList.value[index] = santriData;
                             }
-                            showNotification('Data santri berhasil diupdate', 'success');
                         } else {
-                            // Add new santri
-                            const newSantri = {
-                                id: 'santri-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9),
+                            // Create new santri
+                            santriData = {
+                                id: 'santri-' + Date.now(),
                                 name: santriForm.name.trim(),
-                                angkatan: parseInt(santriForm.angkatan),
-                                musyrifId: santriForm.musyrifId
+                                angkatan: santriForm.angkatan,
+                                musyrifId: santriForm.musyrifId,
+                                isActive: true
                             };
-                            
-                            santriList.value.push(newSantri);
-                            showNotification('Santri baru berhasil ditambahkan', 'success');
+                            santriList.value.push(santriData);
                         }
 
-                        // Immediate sync
-                        await saveToStorage();
-                        if (connectionStatus.value === 'connected') {
-                            await syncToSupabase(true);
+                        // Save to Supabase
+                        const success = await saveSantriToSupabase(santriData);
+                        if (success) {
+                            showNotification(
+                                editingSantri.value ? 'Data santri berhasil diupdate' : 'Santri baru berhasil ditambahkan', 
+                                'success'
+                            );
+                        } else {
+                            showNotification('Data tersimpan lokal, akan disinkronisasi nanti', 'warning');
                         }
-                        
+
                         closeSantriModal();
                         
                     } catch (error) {
@@ -2731,28 +2692,30 @@
                 };
 
                 const deleteSantri = async (santriId) => {
-                    if (confirm('Apakah Anda yakin ingin menghapus santri ini?')) {
+                    if (!confirm('Apakah Anda yakin ingin menghapus santri ini?')) return;
+
+                    try {
+                        // Soft delete in local state
                         const index = santriList.value.findIndex(s => s.id === santriId);
                         if (index !== -1) {
-                            santriList.value.splice(index, 1);
-                            
-                            // Also delete progress data
-                            delete tahfizhProgress.value[santriId];
-                            delete ibadahProgress.value[santriId];
-                            delete attendanceProgress.value[santriId];
-                            
-                            // Immediate sync
-                            await saveToStorage();
-                            if (connectionStatus.value === 'connected') {
-                                await syncToSupabase(true);
-                            }
-                            
-                            showNotification('Santri berhasil dihapus', 'success');
+                            santriList.value[index].isActive = false;
                         }
+
+                        // Soft delete in Supabase
+                        const success = await softDeleteSantri(santriId);
+                        if (success) {
+                            showNotification('Santri berhasil dihapus', 'success');
+                        } else {
+                            showNotification('Data dihapus lokal, akan disinkronisasi nanti', 'warning');
+                        }
+
+                    } catch (error) {
+                        console.error('Error deleting santri:', error);
+                        showNotification('Gagal menghapus santri', 'error');
                     }
                 };
 
-                // FIXED: Musyrif Management with immediate sync
+                // ==================== MUSYRIF MANAGEMENT ====================
                 const openMusyrifModal = (musyrif = null) => {
                     editingMusyrif.value = musyrif;
                     if (musyrif) {
@@ -2788,41 +2751,46 @@
                     isSubmitting.value = true;
 
                     try {
-                        await new Promise(resolve => setTimeout(resolve, 500));
-
+                        let musyrifData;
+                        
                         if (editingMusyrif.value) {
                             // Update existing musyrif
                             const index = musyrifList.value.findIndex(m => m.id === editingMusyrif.value.id);
                             if (index !== -1) {
-                                musyrifList.value[index] = {
+                                musyrifData = {
                                     ...musyrifList.value[index],
                                     name: musyrifForm.name.trim()
                                 };
 
                                 if (musyrifForm.password.trim()) {
-                                    musyrifList.value[index].password = musyrifForm.password.trim();
+                                    musyrifData.password = musyrifForm.password.trim();
                                 }
+                                
+                                musyrifList.value[index] = musyrifData;
                             }
-                            showNotification('Data musyrif berhasil diupdate', 'success');
                         } else {
-                            // Add new musyrif
-                            const newMusyrif = {
-                                id: 'mus-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9),
+                            // Create new musyrif
+                            musyrifData = {
+                                id: 'mus-' + Date.now(),
                                 name: musyrifForm.name.trim(),
                                 username: musyrifForm.username.trim(),
-                                password: musyrifForm.password.trim()
+                                password: musyrifForm.password.trim(),
+                                isActive: true
                             };
-                            
-                            musyrifList.value.push(newMusyrif);
-                            showNotification('Musyrif baru berhasil ditambahkan', 'success');
+                            musyrifList.value.push(musyrifData);
                         }
 
-                        // Immediate sync
-                        await saveToStorage();
-                        if (connectionStatus.value === 'connected') {
-                            await syncToSupabase(true);
+                        // Save to Supabase
+                        const success = await saveMusyrifToSupabase(musyrifData);
+                        if (success) {
+                            showNotification(
+                                editingMusyrif.value ? 'Data musyrif berhasil diupdate' : 'Musyrif baru berhasil ditambahkan', 
+                                'success'
+                            );
+                        } else {
+                            showNotification('Data tersimpan lokal, akan disinkronisasi nanti', 'warning');
                         }
-                        
+
                         closeMusyrifModal();
                         
                     } catch (error) {
@@ -2838,51 +2806,66 @@
                 };
 
                 const deleteMusyrif = async (musyrifId) => {
-                    if (confirm('Apakah Anda yakin ingin menghapus musyrif ini?')) {
+                    if (!confirm('Apakah Anda yakin ingin menghapus musyrif ini?')) return;
+
+                    try {
+                        // Soft delete in local state
                         const index = musyrifList.value.findIndex(m => m.id === musyrifId);
                         if (index !== -1) {
-                            musyrifList.value.splice(index, 1);
-                            
-                            // Immediate sync
-                            await saveToStorage();
-                            if (connectionStatus.value === 'connected') {
-                                await syncToSupabase(true);
-                            }
-                            
-                            showNotification('Musyrif berhasil dihapus', 'success');
+                            musyrifList.value[index].isActive = false;
                         }
+
+                        // Soft delete in Supabase
+                        const success = await softDeleteMusyrif(musyrifId);
+                        if (success) {
+                            showNotification('Musyrif berhasil dihapus', 'success');
+                        } else {
+                            showNotification('Data dihapus lokal, akan disinkronisasi nanti', 'warning');
+                        }
+
+                    } catch (error) {
+                        console.error('Error deleting musyrif:', error);
+                        showNotification('Gagal menghapus musyrif', 'error');
                     }
                 };
 
-                // Helper functions
+                // ==================== HELPER FUNCTIONS ====================
                 const getMusyrifName = (musyrifId) => {
-                    const musyrif = musyrifList.value.find(m => m.id === musyrifId);
+                    const musyrif = musyrifList.value.find(m => m.id === musyrifId && m.isActive !== false);
                     return musyrif ? musyrif.name : 'Unknown';
                 };
 
                 const getSantriByMusyrif = (musyrifId) => {
-                    return santriList.value.filter(santri => santri.musyrifId === musyrifId);
+                    return santriList.value.filter(santri => 
+                        santri.musyrifId === musyrifId && santri.isActive !== false
+                    );
                 };
 
                 const getAngkatanCount = (angkatan) => {
-                    return santriList.value.filter(santri => santri.angkatan === angkatan).length;
+                    return santriList.value.filter(santri => 
+                        santri.angkatan === angkatan && santri.isActive !== false
+                    ).length;
                 };
 
                 const getAngkatanAverageProgressJuz = (angkatan) => {
-                    const santriAngkatan = santriList.value.filter(santri => santri.angkatan === angkatan);
+                    const santriAngkatan = santriList.value.filter(santri => 
+                        santri.angkatan === angkatan && santri.isActive !== false
+                    );
                     if (santriAngkatan.length === 0) return 0;
                     const total = santriAngkatan.reduce((sum, santri) => sum + getSantriCurrentJuz(santri.id), 0);
                     return Math.round(total / santriAngkatan.length);
                 };
 
                 const getAngkatanAverageProgressPercentage = (angkatan) => {
-                    const santriAngkatan = santriList.value.filter(santri => santri.angkatan === angkatan);
+                    const santriAngkatan = santriList.value.filter(santri => 
+                        santri.angkatan === angkatan && santri.isActive !== false
+                    );
                     if (santriAngkatan.length === 0) return 0;
                     const total = santriAngkatan.reduce((sum, santri) => sum + getSantriProgressPercentage(santri.id), 0);
                     return Math.round(total / santriAngkatan.length);
                 };
 
-                // Progress functions
+                // ==================== PROGRESS FUNCTIONS ====================
                 const getSantriProgressPage = (santriId) => {
                     const progress = tahfizhProgress.value[santriId];
                     if (!progress) return 0;
@@ -3000,6 +2983,79 @@
                     });
                 };
 
+                const canSaveTahfizh = (santriId) => {
+                    const input = tahfizhInput.value[santriId];
+                    return input && input.startPage && input.endPage && 
+                           parseInt(input.startPage) <= parseInt(input.endPage);
+                };
+
+                const saveTahfizhProgress = async (santriId) => {
+                    const input = tahfizhInput.value[santriId];
+                    const today = getCurrentDate();
+                    
+                    if (!tahfizhProgress.value[santriId]) {
+                        tahfizhProgress.value[santriId] = {};
+                    }
+                    
+                    const progressData = {
+                        date: today,
+                        startPage: parseInt(input.startPage),
+                        endPage: parseInt(input.endPage),
+                        murojaahJuz: parseInt(input.murojaahJuz) || 0,
+                        exam: input.exam.trim() || null,
+                        timestamp: new Date().toISOString()
+                    };
+                    
+                    tahfizhProgress.value[santriId][today] = progressData;
+                    
+                    // Reset form
+                    tahfizhInput.value[santriId] = {
+                        startPage: '',
+                        endPage: '',
+                        murojaahJuz: 0,
+                        exam: ''
+                    };
+                    
+                    // Save to Supabase
+                    if (supabaseClient.value && connectionStatus.value === 'connected') {
+                        try {
+                            const { error } = await supabaseClient.value
+                                .from('tahfizh_progress')
+                                .upsert({
+                                    santri_id: santriId,
+                                    date: today,
+                                    start_page: progressData.startPage,
+                                    end_page: progressData.endPage,
+                                    murojaah_juz: progressData.murojaahJuz,
+                                    exam: progressData.exam,
+                                    timestamp: progressData.timestamp,
+                                    musyrif_id: currentUser.value?.id,
+                                    updated_at: new Date().toISOString()
+                                }, {
+                                    onConflict: 'santri_id,date'
+                                });
+                                
+                            if (error) {
+                                console.error('Error saving tahfizh progress:', error);
+                                showNotification('Tersimpan lokal, akan disinkronisasi nanti', 'warning');
+                            } else {
+                                showNotification('Progress tahfizh berhasil disimpan', 'success');
+                            }
+                        } catch (error) {
+                            console.error('Error saving tahfizh progress:', error);
+                            showNotification('Tersimpan lokal, akan disinkronisasi nanti', 'warning');
+                        }
+                    } else {
+                        showNotification('Progress tahfizh tersimpan lokal', 'info');
+                    }
+                };
+
+                const getTodayTahfizhProgress = (santriId) => {
+                    const today = getCurrentDate();
+                    return tahfizhProgress.value[santriId]?.[today];
+                };
+
+                // ==================== IBADAH FUNCTIONS ====================
                 const initializeIbadahInput = () => {
                     mySantri.value.forEach(santri => {
                         if (!ibadahInput.value[santri.id]) {
@@ -3020,227 +3076,15 @@
                     });
                 };
 
-                const initializeAttendanceInput = () => {
-                    mySantri.value.forEach(santri => {
-                        if (!attendanceInput.value[santri.id]) {
-                            attendanceInput.value[santri.id] = {};
-                        }
-                        
-                        // Initialize all halaqah for this santri
-                        halaqahList.value.forEach(halaqah => {
-                            if (!attendanceInput.value[santri.id][halaqah.key]) {
-                                attendanceInput.value[santri.id][halaqah.key] = 'tanpa_keterangan';
-                            }
-                        });
-                        
-                        // Load today's attendance data
-                        const today = selectedDate.value;
-                        const todayAttendance = attendanceProgress.value[santri.id]?.[today];
-                        if (todayAttendance) {
-                            halaqahList.value.forEach(halaqah => {
-                                attendanceInput.value[santri.id][halaqah.key] = todayAttendance[halaqah.key] || 'tanpa_keterangan';
-                            });
-                        }
-                    });
-                };
-
-                // FIXED: Attendance functions with immediate sync
-                const saveAttendance = async (santriId, halaqahKey, date, status) => {
-                    // Update local state first
-                    if (!attendanceProgress.value[santriId]) {
-                        attendanceProgress.value[santriId] = {};
-                    }
-                    
-                    if (!attendanceProgress.value[santriId][date]) {
-                        attendanceProgress.value[santriId][date] = {
-                            date: date,
-                            timestamp: new Date().toISOString()
-                        };
-                        
-                        // Initialize all halaqah for this date
-                        halaqahList.value.forEach(halaqah => {
-                            attendanceProgress.value[santriId][date][halaqah.key] = 'tanpa_keterangan';
-                        });
-                    }
-                    
-                    attendanceProgress.value[santriId][date][halaqahKey] = status;
-                    attendanceProgress.value[santriId][date].timestamp = new Date().toISOString();
-                    
-                    // Sync to Supabase immediately if connected
-                    if (supabaseClient.value && connectionStatus.value === 'connected') {
-                        try {
-                            const currentData = attendanceProgress.value[santriId][date];
-                            
-                            const attendanceData = {
-                                santri_id: santriId,
-                                date: date,
-                                halaqah_1: currentData.halaqah_1 || 'tanpa_keterangan',
-                                halaqah_2: currentData.halaqah_2 || 'tanpa_keterangan', 
-                                halaqah_3: currentData.halaqah_3 || 'tanpa_keterangan',
-                                attendance_data: JSON.stringify(currentData),
-                                timestamp: currentData.timestamp,
-                                musyrif_id: currentUser.value?.id,
-                                updated_at: new Date().toISOString()
-                            };
-                            
-                            const { error } = await supabaseClient.value
-                                .from('attendance_progress')
-                                .upsert(attendanceData, {
-                                    onConflict: 'santri_id,date'
-                                });
-                                
-                            if (error) {
-                                console.error('Error syncing attendance to Supabase:', error);
-                                showNotification('Gagal menyimpan data kehadiran: ' + error.message, 'error');
-                            }
-                        } catch (error) {
-                            console.error('Error syncing attendance to Supabase:', error);
-                            showNotification('Gagal menyimpan data kehadiran', 'error');
-                        }
-                    }
-                    
-                    // Save to localStorage as backup
-                    debouncedSave();
-                };
-
-                const getAttendanceStatus = (santriId, halaqahKey, date) => {
-                    return attendanceProgress.value[santriId]?.[date]?.[halaqahKey] || 'tanpa_keterangan';
-                };
-
-                const getAttendanceStatusText = (status) => {
-                    const statusMap = {
-                        'hadir': 'Hadir',
-                        'izin': 'Izin',
-                        'sakit': 'Sakit',
-                        'tanpa_keterangan': 'Alpha'
-                    };
-                    return statusMap[status] || 'Alpha';
-                };
-
-                const getDailyAttendancePercentage = (santriId, date) => {
-                    const attendance = attendanceProgress.value[santriId]?.[date];
-                    if (!attendance) return 0;
-                    
-                    let presentCount = 0;
-                    halaqahList.value.forEach(halaqah => {
-                        if (attendance[halaqah.key] === 'hadir') {
-                            presentCount++;
-                        }
-                    });
-                    
-                    return Math.round((presentCount / halaqahList.value.length) * 100);
-                };
-
-                const getMonthlyAttendanceAverage = (santriId) => {
-                    const dates = getDateRange(attendanceFilter.month);
-                    const currentDate = getCurrentDate();
-                    const validDates = dates.filter(date => date <= currentDate);
-                    
-                    if (validDates.length === 0) return 0;
-                    
-                    let totalPercentage = 0;
-                    validDates.forEach(date => {
-                        totalPercentage += getDailyAttendancePercentage(santriId, date);
-                    });
-                    
-                    return Math.round(totalPercentage / validDates.length);
-                };
-
-                const getMonthlyAttendancePercentage = (santriId) => {
-                    return getMonthlyAttendanceAverage(santriId);
-                };
-
-                const getMonthlyAttendanceSummary = () => {
-                    const dates = getDateRange(attendanceFilter.month);
-                    const currentDate = getCurrentDate();
-                    const validDates = dates.filter(date => date <= currentDate);
-                    
-                    let totalAttendance = 0;
-                    let perfectDays = 0;
-                    let totalSantri = filteredSantriForAttendance.value.length;
-                    let bestAttendee = { name: '-', score: 0 };
-                    
-                    filteredSantriForAttendance.value.forEach(santri => {
-                        const monthlyAvg = getMonthlyAttendanceAverage(santri.id);
-                        totalAttendance += monthlyAvg;
-                        
-                        if (monthlyAvg > bestAttendee.score) {
-                            bestAttendee = { name: santri.name, score: monthlyAvg };
-                        }
-                        
-                        // Count perfect days (100% attendance)
-                        validDates.forEach(date => {
-                            if (getDailyAttendancePercentage(santri.id, date) === 100) {
-                                perfectDays++;
-                            }
-                        });
-                    });
-                    
-                    const totalHalaqah = validDates.length * halaqahList.value.length;
-                    
-                    return {
-                        averageAttendance: totalSantri > 0 ? Math.round(totalAttendance / totalSantri) : 0,
-                        totalHalaqah,
-                        perfectDays,
-                        bestAttendee
-                    };
-                };
-
-                const canSaveTahfizh = (santriId) => {
-                    const input = tahfizhInput.value[santriId];
-                    return input && input.startPage && input.endPage && 
-                           parseInt(input.startPage) <= parseInt(input.endPage);
-                };
-
-                const saveTahfizhProgress = async (santriId) => {
-                    const input = tahfizhInput.value[santriId];
-                    const today = getCurrentDate();
-                    
-                    if (!tahfizhProgress.value[santriId]) {
-                        tahfizhProgress.value[santriId] = {};
-                    }
-                    
-                    tahfizhProgress.value[santriId][today] = {
-                        date: today,
-                        startPage: parseInt(input.startPage),
-                        endPage: parseInt(input.endPage),
-                        murojaahJuz: parseInt(input.murojaahJuz) || 0,
-                        exam: input.exam.trim() || null,
-                        timestamp: new Date().toISOString()
-                    };
-                    
-                    // Reset form
-                    tahfizhInput.value[santriId] = {
-                        startPage: '',
-                        endPage: '',
-                        murojaahJuz: 0,
-                        exam: ''
-                    };
-                    
-                    // Immediate sync
-                    debouncedSave();
-                    showNotification('Progress tahfizh berhasil disimpan', 'success');
-                };
-
-                const getTodayTahfizhProgress = (santriId) => {
-                    const today = getCurrentDate();
-                    return tahfizhProgress.value[santriId]?.[today];
-                };
-
-                // FIXED: Enhanced toggleIbadah function with immediate sync
                 const toggleIbadah = async (santriId, ibadahKey, date, value) => {
-                    console.log(`Toggling ibadah: ${santriId}, ${ibadahKey}, ${date}, ${value}`);
-                    
                     // Update local state first (optimistic update)
                     updateLocalIbadah(santriId, ibadahKey, date, value);
                     
-                    // Sync to Supabase immediately if connected
+                    // Sync to Supabase if connected
                     if (supabaseClient.value && connectionStatus.value === 'connected') {
                         try {
-                            // Get current day's data
                             const currentData = ibadahProgress.value[santriId]?.[date] || {};
                             
-                            // Prepare full day data for upsert
                             const ibadahData = {
                                 santri_id: santriId,
                                 date: date,
@@ -3272,23 +3116,15 @@
                                 
                             if (error) {
                                 console.error('Error syncing ibadah to Supabase:', error);
-                                // Rollback UI if sync failed
-                                updateLocalIbadah(santriId, ibadahKey, date, !value);
-                                showNotification('Gagal menyimpan data ibadah: ' + error.message, 'error');
+                                showNotification('Data tersimpan lokal, akan disinkronisasi nanti', 'warning');
                             }
                         } catch (error) {
                             console.error('Error syncing ibadah to Supabase:', error);
-                            // Rollback UI if sync failed
-                            updateLocalIbadah(santriId, ibadahKey, date, !value);
-                            showNotification('Gagal menyimpan data ibadah', 'error');
+                            showNotification('Data tersimpan lokal, akan disinkronisasi nanti', 'warning');
                         }
                     }
-                    
-                    // Save to localStorage as backup
-                    debouncedSave();
                 };
 
-                // Helper function to update local ibadah state
                 const updateLocalIbadah = (santriId, ibadahKey, date, value) => {
                     if (!ibadahProgress.value[santriId]) {
                         ibadahProgress.value[santriId] = {};
@@ -3308,6 +3144,35 @@
                     
                     ibadahProgress.value[santriId][date][ibadahKey] = value;
                     ibadahProgress.value[santriId][date].timestamp = new Date().toISOString();
+                };
+
+                const getIbadahCompletion = (santriId, date) => {
+                    const dayIbadah = ibadahProgress.value[santriId]?.[date];
+                    if (!dayIbadah) return 0;
+                    
+                    let completed = 0;
+                    ibadahList.value.forEach(ibadah => {
+                        if (dayIbadah[ibadah.key]) completed++;
+                    });
+                    
+                    return Math.round((completed / ibadahList.value.length) * 100);
+                };
+
+                const getCompletedIbadahCount = (santriId, date = null) => {
+                    const targetDate = date || getCurrentDate();
+                    const dayIbadah = ibadahProgress.value[santriId]?.[targetDate];
+                    if (!dayIbadah) return 0;
+                    
+                    let completed = 0;
+                    ibadahList.value.forEach(ibadah => {
+                        if (dayIbadah[ibadah.key]) completed++;
+                    });
+                    
+                    return completed;
+                };
+
+                const isIbadahCompleted = (santriId, ibadahKey, date) => {
+                    return ibadahProgress.value[santriId]?.[date]?.[ibadahKey] || false;
                 };
 
                 const getMonthlyIbadahAverage = (santriId) => {
@@ -3515,31 +3380,6 @@
                     }
                 };
 
-                const getIbadahCompletion = (santriId, date) => {
-                    const dayIbadah = ibadahProgress.value[santriId]?.[date];
-                    if (!dayIbadah) return 0;
-                    
-                    let completed = 0;
-                    ibadahList.value.forEach(ibadah => {
-                        if (dayIbadah[ibadah.key]) completed++;
-                    });
-                    
-                    return Math.round((completed / ibadahList.value.length) * 100);
-                };
-
-                const getCompletedIbadahCount = (santriId, date = null) => {
-                    const targetDate = date || getCurrentDate();
-                    const dayIbadah = ibadahProgress.value[santriId]?.[targetDate];
-                    if (!dayIbadah) return 0;
-                    
-                    let completed = 0;
-                    ibadahList.value.forEach(ibadah => {
-                        if (dayIbadah[ibadah.key]) completed++;
-                    });
-                    
-                    return completed;
-                };
-
                 const getIncompleteIbadahList = (santriId, date) => {
                     const dayIbadah = ibadahProgress.value[santriId]?.[date];
                     if (!dayIbadah) {
@@ -3557,47 +3397,204 @@
                     return incompleteList;
                 };
 
-                const isIbadahCompleted = (santriId, ibadahKey, date) => {
-                    return ibadahProgress.value[santriId]?.[date]?.[ibadahKey] || false;
+                // ==================== ATTENDANCE FUNCTIONS ====================
+                const initializeAttendanceInput = () => {
+                    mySantri.value.forEach(santri => {
+                        if (!attendanceInput.value[santri.id]) {
+                            attendanceInput.value[santri.id] = {};
+                        }
+                        
+                        // Initialize all halaqah for this santri
+                        halaqahList.value.forEach(halaqah => {
+                            if (!attendanceInput.value[santri.id][halaqah.key]) {
+                                attendanceInput.value[santri.id][halaqah.key] = 'tanpa_keterangan';
+                            }
+                        });
+                        
+                        // Load today's attendance data
+                        const today = selectedDate.value;
+                        const todayAttendance = attendanceProgress.value[santri.id]?.[today];
+                        if (todayAttendance) {
+                            halaqahList.value.forEach(halaqah => {
+                                attendanceInput.value[santri.id][halaqah.key] = todayAttendance[halaqah.key] || 'tanpa_keterangan';
+                            });
+                        }
+                    });
                 };
 
-                // FIXED: Storage & Sync functions
+                const saveAttendance = async (santriId, halaqahKey, date, status) => {
+                    // Update local state first
+                    if (!attendanceProgress.value[santriId]) {
+                        attendanceProgress.value[santriId] = {};
+                    }
+                    
+                    if (!attendanceProgress.value[santriId][date]) {
+                        attendanceProgress.value[santriId][date] = {
+                            date: date,
+                            timestamp: new Date().toISOString()
+                        };
+                        
+                        // Initialize all halaqah for this date
+                        halaqahList.value.forEach(halaqah => {
+                            attendanceProgress.value[santriId][date][halaqah.key] = 'tanpa_keterangan';
+                        });
+                    }
+                    
+                    attendanceProgress.value[santriId][date][halaqahKey] = status;
+                    attendanceProgress.value[santriId][date].timestamp = new Date().toISOString();
+                    
+                    // Sync to Supabase if connected
+                    if (supabaseClient.value && connectionStatus.value === 'connected') {
+                        try {
+                            const currentData = attendanceProgress.value[santriId][date];
+                            
+                            const attendanceData = {
+                                santri_id: santriId,
+                                date: date,
+                                halaqah_1: currentData.halaqah_1 || 'tanpa_keterangan',
+                                halaqah_2: currentData.halaqah_2 || 'tanpa_keterangan', 
+                                halaqah_3: currentData.halaqah_3 || 'tanpa_keterangan',
+                                attendance_data: JSON.stringify(currentData),
+                                timestamp: currentData.timestamp,
+                                musyrif_id: currentUser.value?.id,
+                                updated_at: new Date().toISOString()
+                            };
+                            
+                            const { error } = await supabaseClient.value
+                                .from('attendance_progress')
+                                .upsert(attendanceData, {
+                                    onConflict: 'santri_id,date'
+                                });
+                                
+                            if (error) {
+                                console.error('Error syncing attendance to Supabase:', error);
+                                showNotification('Data tersimpan lokal, akan disinkronisasi nanti', 'warning');
+                            }
+                        } catch (error) {
+                            console.error('Error syncing attendance to Supabase:', error);
+                            showNotification('Data tersimpan lokal, akan disinkronisasi nanti', 'warning');
+                        }
+                    }
+                };
+
+                const getAttendanceStatus = (santriId, halaqahKey, date) => {
+                    return attendanceProgress.value[santriId]?.[date]?.[halaqahKey] || 'tanpa_keterangan';
+                };
+
+                const getAttendanceStatusText = (status) => {
+                    const statusMap = {
+                        'hadir': 'Hadir',
+                        'izin': 'Izin',
+                        'sakit': 'Sakit',
+                        'tanpa_keterangan': 'Alpha'
+                    };
+                    return statusMap[status] || 'Alpha';
+                };
+
+                const getDailyAttendancePercentage = (santriId, date) => {
+                    const attendance = attendanceProgress.value[santriId]?.[date];
+                    if (!attendance) return 0;
+                    
+                    let presentCount = 0;
+                    halaqahList.value.forEach(halaqah => {
+                        if (attendance[halaqah.key] === 'hadir') {
+                            presentCount++;
+                        }
+                    });
+                    
+                    return Math.round((presentCount / halaqahList.value.length) * 100);
+                };
+
+                const getMonthlyAttendanceAverage = (santriId) => {
+                    const dates = getDateRange(attendanceFilter.month);
+                    const currentDate = getCurrentDate();
+                    const validDates = dates.filter(date => date <= currentDate);
+                    
+                    if (validDates.length === 0) return 0;
+                    
+                    let totalPercentage = 0;
+                    validDates.forEach(date => {
+                        totalPercentage += getDailyAttendancePercentage(santriId, date);
+                    });
+                    
+                    return Math.round(totalPercentage / validDates.length);
+                };
+
+                const getMonthlyAttendancePercentage = (santriId) => {
+                    return getMonthlyAttendanceAverage(santriId);
+                };
+
+                const getMonthlyAttendanceSummary = () => {
+                    const dates = getDateRange(attendanceFilter.month);
+                    const currentDate = getCurrentDate();
+                    const validDates = dates.filter(date => date <= currentDate);
+                    
+                    let totalAttendance = 0;
+                    let perfectDays = 0;
+                    let totalSantri = filteredSantriForAttendance.value.length;
+                    let bestAttendee = { name: '-', score: 0 };
+                    
+                    filteredSantriForAttendance.value.forEach(santri => {
+                        const monthlyAvg = getMonthlyAttendanceAverage(santri.id);
+                        totalAttendance += monthlyAvg;
+                        
+                        if (monthlyAvg > bestAttendee.score) {
+                            bestAttendee = { name: santri.name, score: monthlyAvg };
+                        }
+                        
+                        // Count perfect days (100% attendance)
+                        validDates.forEach(date => {
+                            if (getDailyAttendancePercentage(santri.id, date) === 100) {
+                                perfectDays++;
+                            }
+                        });
+                    });
+                    
+                    const totalHalaqah = validDates.length * halaqahList.value.length;
+                    
+                    return {
+                        averageAttendance: totalSantri > 0 ? Math.round(totalAttendance / totalSantri) : 0,
+                        totalHalaqah,
+                        perfectDays,
+                        bestAttendee
+                    };
+                };
+
+                // ==================== STORAGE & SYNC ====================
                 const loadFromStorage = () => {
                     try {
                         const savedMusyrif = localStorage.getItem('musyrifList');
                         if (savedMusyrif) {
                             const parsed = JSON.parse(savedMusyrif);
-                            if (Array.isArray(parsed) && parsed.length > 0) {
-                                musyrifList.value = parsed;
-                                console.log('Loaded musyrif from localStorage');
-                            }
+                            // Add isActive flag if missing
+                            musyrifList.value = parsed.map(item => ({
+                                ...item,
+                                isActive: item.isActive !== false
+                            }));
                         }
 
                         const savedSantri = localStorage.getItem('santriList');
                         if (savedSantri) {
                             const parsed = JSON.parse(savedSantri);
-                            if (Array.isArray(parsed) && parsed.length > 0) {
-                                santriList.value = parsed;
-                                console.log('Loaded santri from localStorage');
-                            }
+                            santriList.value = parsed.map(item => ({
+                                ...item,
+                                isActive: item.isActive !== false
+                            }));
                         }
 
                         const savedTahfizh = localStorage.getItem('tahfizhProgress');
                         if (savedTahfizh) {
                             tahfizhProgress.value = JSON.parse(savedTahfizh);
-                            console.log('Loaded tahfizh progress from localStorage');
                         }
 
                         const savedIbadah = localStorage.getItem('ibadahProgress');
                         if (savedIbadah) {
                             ibadahProgress.value = JSON.parse(savedIbadah);
-                            console.log('Loaded ibadah progress from localStorage');
                         }
 
                         const savedAttendance = localStorage.getItem('attendanceProgress');
                         if (savedAttendance) {
                             attendanceProgress.value = JSON.parse(savedAttendance);
-                            console.log('Loaded attendance progress from localStorage');
                         }
 
                         const savedDarkMode = localStorage.getItem('darkMode');
@@ -3612,7 +3609,7 @@
                     }
                 };
 
-                const saveToStorage = async () => {
+                const saveToStorage = () => {
                     try {
                         localStorage.setItem('musyrifList', JSON.stringify(musyrifList.value));
                         localStorage.setItem('santriList', JSON.stringify(santriList.value));
@@ -3620,18 +3617,16 @@
                         localStorage.setItem('ibadahProgress', JSON.stringify(ibadahProgress.value));
                         localStorage.setItem('attendanceProgress', JSON.stringify(attendanceProgress.value));
                         localStorage.setItem('darkMode', darkMode.value.toString());
-                        console.log('Data saved to localStorage');
                     } catch (error) {
                         console.error('Error saving to storage:', error);
                     }
                 };
 
-                // FIXED: Simplified auto-save
                 const autoSave = () => {
-                    debouncedSave();
+                    saveToStorage();
                 };
 
-                // Watchers
+                // ==================== WATCHERS ====================
                 watch(mySantri, () => {
                     if (isMusyrif.value) {
                         initializeTahfizhInput();
@@ -3647,44 +3642,20 @@
                     }
                 });
 
-                // FIXED: Lifecycle with better initialization
+                // ==================== LIFECYCLE ====================
                 onMounted(async () => {
-                    console.log('App starting...');
+                    console.log('🚀 Application starting...');
                     
                     // Load data from localStorage first
                     loadFromStorage();
                     
-                    // Set defaults if no data in localStorage
-                    if (musyrifList.value.length === 0) {
-                        musyrifList.value = [
-                            { id: 'mus-1', name: 'Ustadzah Min Ai', username: 'aminah', password: 'aminah123' },
-                            { id: 'mus-2', name: 'Ustadzah Arini', username: 'arini', password: 'arini123' }
-                        ];
-                    }
+                    // Initialize Supabase
+                    await initializeSupabase();
                     
-                    if (santriList.value.length === 0) {
-                        santriList.value = [
-                            { id: 'santri-1', name: 'Zainab', angkatan: 9, musyrifId: 'mus-1' },
-                            { id: 'santri-2', name: 'Salamah', angkatan: 10, musyrifId: 'mus-2' }
-                        ];
-                    }
-                    
-                    // Try to connect to Supabase
-                    const initialized = initializeSupabase();
-                    if (initialized) {
-                        const connected = await testConnection();
-                        if (connected) {
-                            await syncFromSupabase();
-                        }
-                    } else {
-                        console.log('Supabase not configured, using localStorage only');
-                        showNotification('Mode offline - data disimpan di browser', 'info', 3000);
-                    }
-                    
-                    // Auto-save interval (every 30 seconds)
+                    // Auto-save interval
                     setInterval(() => {
                         if (isLoggedIn.value || isPublicAccess.value) {
-                            debouncedSave();
+                            autoSave();
                         }
                     }, 30000);
                     
