@@ -1004,23 +1004,23 @@
                                         <div class="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                             <div>
                                                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                                    Halaman Awal <span class="text-red-500">*</span>
+                                                    Halaman Awal 
                                                 </label>
                                                 <input type="number" 
                                                        v-model.number="tahfizhInput[santri.id].startPage"
                                                        min="1" max="604"
                                                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                                                       placeholder="1">
+                                                       placeholder="0">
                                             </div>
                                             <div>
                                                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                                    Halaman Akhir <span class="text-red-500">*</span>
+                                                    Halaman Akhir 
                                                 </label>
                                                 <input type="number" 
                                                        v-model.number="tahfizhInput[santri.id].endPage"
                                                        min="1" max="604"
                                                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                                                       placeholder="1">
+                                                       placeholder="0">
                                                 <div v-if="tahfizhInput[santri.id].startPage && tahfizhInput[santri.id].endPage" class="juz-indicator">
                                                     Juz: {{ getJuzFromPages(tahfizhInput[santri.id].startPage, tahfizhInput[santri.id].endPage) }}
                                                 </div>
@@ -2882,7 +2882,8 @@
                     
                     let maxPage = 0;
                     Object.values(progress).forEach(dayProgress => {
-                        if (dayProgress.endPage > maxPage) {
+                        // Hanya hitung jika ada halaman yang valid
+                        if (dayProgress.endPage && dayProgress.endPage > maxPage) {
                             maxPage = dayProgress.endPage;
                         }
                     });
@@ -2922,7 +2923,12 @@
                     
                     dates.forEach(date => {
                         const dayProgress = progress[date];
-                        if (dayProgress && dayProgress.startPage && dayProgress.endPage) {
+                        // Pastikan ada halaman yang valid dan bukan null
+                        if (dayProgress && 
+                            dayProgress.startPage && 
+                            dayProgress.endPage && 
+                            dayProgress.startPage !== null && 
+                            dayProgress.endPage !== null) {
                             totalPages += (dayProgress.endPage - dayProgress.startPage + 1);
                         }
                     });
@@ -2995,8 +3001,16 @@
 
                 const canSaveTahfizh = (santriId) => {
                     const input = tahfizhInput.value[santriId];
-                    return input && input.startPage && input.endPage && 
-                           parseInt(input.startPage) <= parseInt(input.endPage);
+                    if (!input) return false;
+                    
+                    // Jika ada input halaman, validasi harus benar
+                    if (input.startPage || input.endPage) {
+                        if (!input.startPage || !input.endPage) return false;
+                        return parseInt(input.startPage) <= parseInt(input.endPage);
+                    }
+                    
+                    // Jika tidak ada input halaman, tetap bisa simpan (untuk murojaah/ujian saja)
+                    return true;
                 };
 
                 const saveTahfizhProgress = async (santriId) => {
@@ -3009,10 +3023,10 @@
                     
                     const progressData = {
                         date: today,
-                        startPage: parseInt(input.startPage),
-                        endPage: parseInt(input.endPage),
+                        startPage: input.startPage ? parseInt(input.startPage) : null,
+                        endPage: input.endPage ? parseInt(input.endPage) : null,
                         murojaahJuz: parseInt(input.murojaahJuz) || 0,
-                        exam: input.exam.trim() || null,
+                        exam: input.exam ? input.exam.trim() : null,
                         timestamp: new Date().toISOString()
                     };
                     
@@ -3028,37 +3042,37 @@
                     
                     // Save to Supabase
                     if (supabaseClient.value && connectionStatus.value === 'connected') {
-                        try {
-                            const { error } = await supabaseClient.value
-                                .from('tahfizh_progress')
-                                .upsert({
-                                    santri_id: santriId,
-                                    date: today,
-                                    start_page: progressData.startPage,
-                                    end_page: progressData.endPage,
-                                    murojaah_juz: progressData.murojaahJuz,
-                                    exam: progressData.exam,
-                                    timestamp: progressData.timestamp,
-                                    musyrif_id: currentUser.value?.id,
-                                    updated_at: new Date().toISOString()
-                                }, {
-                                    onConflict: 'santri_id,date'
-                                });
-                                
-                            if (error) {
+                            try {
+                                const { error } = await supabaseClient.value
+                                    .from('tahfizh_progress')
+                                    .upsert({
+                                        santri_id: santriId,
+                                        date: today,
+                                        start_page: progressData.startPage,
+                                        end_page: progressData.endPage,
+                                        murojaah_juz: progressData.murojaahJuz,
+                                        exam: progressData.exam,
+                                        timestamp: progressData.timestamp,
+                                        musyrif_id: currentUser.value?.id,
+                                        updated_at: new Date().toISOString()
+                                    }, {
+                                        onConflict: 'santri_id,date'
+                                    });
+                                    
+                                if (error) {
+                                    console.error('Error saving tahfizh progress:', error);
+                                    showNotification('Tersimpan lokal, akan disinkronisasi nanti', 'warning');
+                                } else {
+                                    showNotification('Progress tahfizh berhasil disimpan', 'success');
+                                }
+                            } catch (error) {
                                 console.error('Error saving tahfizh progress:', error);
                                 showNotification('Tersimpan lokal, akan disinkronisasi nanti', 'warning');
-                            } else {
-                                showNotification('Progress tahfizh berhasil disimpan', 'success');
                             }
-                        } catch (error) {
-                            console.error('Error saving tahfizh progress:', error);
-                            showNotification('Tersimpan lokal, akan disinkronisasi nanti', 'warning');
+                        } else {
+                            showNotification('Progress tahfizh tersimpan lokal', 'info');
                         }
-                    } else {
-                        showNotification('Progress tahfizh tersimpan lokal', 'info');
-                    }
-                };
+                    };
 
                 const getTodayTahfizhProgress = (santriId) => {
                     const today = getCurrentDate();
