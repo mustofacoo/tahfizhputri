@@ -2546,7 +2546,49 @@
                     };
                     return icons[type] || icons.info;
                 };
+const getTodayProgressSummary = (santriId) => {
+    const today = getCurrentDate();
+    const todayData = tahfizhProgress.value[santriId]?.[today];
+    
+    if (!todayData) return null;
+    
+    return {
+        hasPages: todayData.startPage && todayData.endPage,
+        pageRange: todayData.startPage && todayData.endPage ? 
+            `${todayData.startPage}-${todayData.endPage}` : null,
+        murojaahJuz: todayData.murojaahJuz || 0,
+        exam: todayData.exam || null,
+        canAddMore: true // Selalu bisa tambah murojaah/ujian
+    };
+};
 
+const getPageInputValidation = (santriId) => {
+    const input = tahfizhInput.value[santriId];
+    if (!input) return { valid: true, message: '' };
+    
+    if (input.startPage && input.endPage) {
+        const start = parseInt(input.startPage);
+        const end = parseInt(input.endPage);
+        
+        if (start > end) {
+            return { valid: false, message: 'Halaman awal harus ≤ halaman akhir' };
+        }
+        if (start < 1 || end > 604) {
+            return { valid: false, message: 'Halaman harus antara 1-604' };
+        }
+        
+        // Cek apakah progress ini lebih rendah dari progress terakhir
+        const currentMax = getSantriProgressPage(santriId);
+        if (end < currentMax) {
+            return { 
+                valid: true, 
+                message: `⚠️ Progress ini (${end}) lebih rendah dari terakhir (${currentMax})` 
+            };
+        }
+    }
+    
+    return { valid: true, message: '' };
+};
                 // ==================== AUTHENTICATION ====================
                 const login = async () => {
                     loginError.value = '';
@@ -3000,80 +3042,115 @@
                 };
 
                 const canSaveTahfizh = (santriId) => {
-                    const input = tahfizhInput.value[santriId];
-                    if (!input) return false;
-                    
-                    // Jika ada input halaman, validasi harus benar
-                    if (input.startPage || input.endPage) {
-                        if (!input.startPage || !input.endPage) return false;
-                        return parseInt(input.startPage) <= parseInt(input.endPage);
-                    }
-                    
-                    // Jika tidak ada input halaman, tetap bisa simpan (untuk murojaah/ujian saja)
+                const input = tahfizhInput.value[santriId];
+                if (!input) return false;
+                
+                // Cek apakah ada input halaman
+                const hasPageInput = input.startPage || input.endPage;
+                
+                // Jika ada input halaman, validasi harus lengkap dan benar
+                if (hasPageInput) {
+                    if (!input.startPage || !input.endPage) return false;
+                    const start = parseInt(input.startPage);
+                    const end = parseInt(input.endPage);
+                    if (start > end || start < 1 || end > 604) return false;
                     return true;
-                };
+                }
+                
+                // Jika tidak ada input halaman, cek ada input murojaah atau ujian
+                const hasMurojaah = input.murojaahJuz && parseInt(input.murojaahJuz) > 0;
+                const hasExam = input.exam && input.exam.trim();
+                
+                return hasMurojaah || hasExam;
+            };
 
                 const saveTahfizhProgress = async (santriId) => {
-                    const input = tahfizhInput.value[santriId];
-                    const today = getCurrentDate();
-                    
-                    if (!tahfizhProgress.value[santriId]) {
-                        tahfizhProgress.value[santriId] = {};
-                    }
-                    
-                    const progressData = {
-                        date: today,
-                        startPage: input.startPage ? parseInt(input.startPage) : null,
-                        endPage: input.endPage ? parseInt(input.endPage) : null,
-                        murojaahJuz: parseInt(input.murojaahJuz) || 0,
-                        exam: input.exam ? input.exam.trim() : null,
-                        timestamp: new Date().toISOString()
-                    };
-                    
-                    tahfizhProgress.value[santriId][today] = progressData;
-                    
-                    // Reset form
-                    tahfizhInput.value[santriId] = {
-                        startPage: '',
-                        endPage: '',
-                        murojaahJuz: 0,
-                        exam: ''
-                    };
-                    
-                    // Save to Supabase
-                    if (supabaseClient.value && connectionStatus.value === 'connected') {
-                            try {
-                                const { error } = await supabaseClient.value
-                                    .from('tahfizh_progress')
-                                    .upsert({
-                                        santri_id: santriId,
-                                        date: today,
-                                        start_page: progressData.startPage,
-                                        end_page: progressData.endPage,
-                                        murojaah_juz: progressData.murojaahJuz,
-                                        exam: progressData.exam,
-                                        timestamp: progressData.timestamp,
-                                        musyrif_id: currentUser.value?.id,
-                                        updated_at: new Date().toISOString()
-                                    }, {
-                                        onConflict: 'santri_id,date'
-                                    });
-                                    
-                                if (error) {
-                                    console.error('Error saving tahfizh progress:', error);
-                                    showNotification('Tersimpan lokal, akan disinkronisasi nanti', 'warning');
-                                } else {
-                                    showNotification('Progress tahfizh berhasil disimpan', 'success');
-                                }
-                            } catch (error) {
-                                console.error('Error saving tahfizh progress:', error);
-                                showNotification('Tersimpan lokal, akan disinkronisasi nanti', 'warning');
-                            }
-                        } else {
-                            showNotification('Progress tahfizh tersimpan lokal', 'info');
+                const input = tahfizhInput.value[santriId];
+                const today = getCurrentDate();
+                
+                if (!tahfizhProgress.value[santriId]) {
+                    tahfizhProgress.value[santriId] = {};
+                }
+                
+                // PERBAIKAN: Ambil data existing hari ini untuk di-merge
+                const existingToday = tahfizhProgress.value[santriId][today] || {};
+                
+                // PERBAIKAN: Merge data, bukan replace
+                const progressData = {
+                    date: today,
+                    // Gunakan input baru jika ada, jika tidak pertahankan yang lama
+                    startPage: input.startPage ? parseInt(input.startPage) : existingToday.startPage || null,
+                    endPage: input.endPage ? parseInt(input.endPage) : existingToday.endPage || null,
+                    // Akumulasi murojaah (tambahkan ke existing)
+                    murojaahJuz: (parseInt(input.murojaahJuz) || 0) + (existingToday.murojaahJuz || 0),
+                    // Update ujian jika ada input baru, jika tidak pertahankan yang lama
+                    exam: input.exam ? input.exam.trim() : existingToday.exam || null,
+                    timestamp: new Date().toISOString()
+                };
+                
+                // PERBAIKAN: Validasi akhir - jangan simpan jika semua field kosong
+                const hasValidData = progressData.startPage || progressData.endPage || progressData.murojaahJuz > 0 || progressData.exam;
+                
+                if (!hasValidData) {
+                    showNotification('Tidak ada data untuk disimpan', 'warning');
+                    return;
+                }
+                
+                // Simpan ke local state
+                tahfizhProgress.value[santriId][today] = progressData;
+                
+                // Reset form
+                tahfizhInput.value[santriId] = {
+                    startPage: '',
+                    endPage: '',
+                    murojaahJuz: 0,
+                    exam: ''
+                };
+                
+                // PERBAIKAN: Save to Supabase dengan handling NULL values yang lebih baik
+                if (supabaseClient.value && connectionStatus.value === 'connected') {
+                    try {
+                        // Buat object dasar
+                        const dataToSave = {
+                            santri_id: santriId,
+                            date: today,
+                            murojaah_juz: progressData.murojaahJuz,
+                            timestamp: progressData.timestamp,
+                            musyrif_id: currentUser.value?.id,
+                            updated_at: new Date().toISOString()
+                        };
+                        
+                        // PERBAIKAN: Hanya tambahkan field yang tidak null
+                        if (progressData.startPage !== null) {
+                            dataToSave.start_page = progressData.startPage;
                         }
-                    };
-
+                        if (progressData.endPage !== null) {
+                            dataToSave.end_page = progressData.endPage;
+                        }
+                        if (progressData.exam !== null && progressData.exam !== '') {
+                            dataToSave.exam = progressData.exam;
+                        }
+                        
+                        const { error } = await supabaseClient.value
+                            .from('tahfizh_progress')
+                            .upsert(dataToSave, {
+                                onConflict: 'santri_id,date'
+                            });
+                            
+                        if (error) {
+                            console.error('Error saving tahfizh progress:', error);
+                            showNotification('Tersimpan lokal, akan disinkronisasi nanti', 'warning');
+                        } else {
+                            showNotification('Progress tahfizh berhasil disimpan', 'success');
+                        }
+                    } catch (error) {
+                        console.error('Error saving tahfizh progress:', error);
+                        showNotification('Tersimpan lokal, akan disinkronisasi nanti', 'warning');
+                    }
+                } else {
+                    showNotification('Progress tahfizh tersimpan lokal', 'info');
+                }
+            };
                 const getTodayTahfizhProgress = (santriId) => {
                     const today = getCurrentDate();
                     return tahfizhProgress.value[santriId]?.[today];
